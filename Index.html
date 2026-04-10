@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>La Vague - Premium Delivery System</title>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        :root {
+            --neon-blue: #00d4ff;
+            --dark-blue: #111827;
+            --bg-deep: #050a12;
+            --white: #ffffff;
+            --success-green: #15803d;
+        }
+
+        body { background-color: var(--bg-deep); color: #fff; font-family: 'Arial', sans-serif; overflow-x: hidden; }
+
+        /* --- Navbar --- */
+        .navbar {
+            width: 100%; padding: 15px 20px; display: flex; justify-content: space-between;
+            align-items: center; background: #000; position: sticky; top: 0; z-index: 1000; height: 70px;
+            border-bottom: 1px solid var(--neon-blue);
+        }
+        .nav-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { font-size: 1.5rem; color: var(--neon-blue); cursor: pointer; display: none; }
+        .nav-brand { font-weight: 900; font-style: italic; font-size: 1.3rem; letter-spacing: 2px; }
+        
+        .white-cart-btn {
+            display: none; position: relative; background: var(--white); color: #000; 
+            width: 50px; height: 50px; border-radius: 12px; align-items: center; 
+            justify-content: center; font-size: 1.4rem; cursor: pointer; box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        }
+        .cart-badge {
+            position: absolute; top: -8px; right: -8px; background: var(--neon-blue);
+            color: #000; width: 22px; height: 22px; border-radius: 50%;
+            font-size: 0.8rem; display: flex; align-items: center; justify-content: center; font-weight: 900; }
+
+        /* --- Home Section --- */
+        .page { display: none; padding-bottom: 50px; }
+        .page.active { display: block; }
+        .hero { height: calc(100vh - 70px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 15px; }
+        
+        /* اللوغو الدائري المثالي 100% - ضمان عدم التمدد */
+        .logo-fixed-circle { 
+            width: 140px !important; 
+            height: 140px !important; 
+            border-radius: 50% !important; 
+            border: 4px solid var(--neon-blue); 
+            box-shadow: 0 0 35px var(--neon-blue); 
+            margin: 0 auto 10px auto; 
+            background: url('https://i.postimg.cc/VNtsh9T2/IMG-20260410-144111-261.jpg') center center / cover no-repeat; 
+            aspect-ratio: 1 / 1; 
+            flex-shrink: 0;
+        }
+
+        .brand-title { font-size: 2.2rem; font-weight: 900; font-style: italic; text-transform: uppercase; }
+        .slogan-bar { background-color: #1d4ed8; color: #fff; padding: 10px 30px; font-style: italic; font-weight: bold; transform: skew(-15deg); margin-bottom: 20px; font-size: 0.9rem; }
+        .btn-stack { width: 90%; max-width: 380px; display: flex; flex-direction: column; gap: 15px; align-items: center; }
+
+        .sub-btn { width: 100%; padding: 18px; border-radius: 18px; text-decoration: none; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 1rem; transition: 0.3s; border:none; cursor: pointer; }
+        .btn-maps-main { background: var(--neon-blue); color: #000; }
+        .btn-call-main { background: rgba(255,255,255,0.05); border: 1px solid var(--neon-blue); color: var(--neon-blue); }
+
+        .menu-giant-trigger { width: 100%; background: linear-gradient(to bottom, #00d4ff, #0052cc); color: #fff; padding: 35px; border-radius: 25px; border: none; font-size: 3rem; font-weight: 900; cursor: pointer; box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3); }
+
+        /* --- المنيو --- */
+        .section-title { color: var(--neon-blue); font-style: italic; font-weight: 900; text-transform: uppercase; margin: 35px 20px 15px 20px; border-left: 5px solid var(--neon-blue); padding-left: 10px; }
+        .dish-card { background: rgba(255,255,255,0.03); margin: 0 20px 10px 20px; padding: 15px; border-radius: 18px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); }
+        .order-btn { background: var(--neon-blue); color: #000; border: none; padding: 10px 15px; border-radius: 10px; font-weight: 900; cursor: pointer; display: flex; flex-direction: column; align-items: center; min-width: 85px; }
+        .order-btn span { font-size: 0.65rem; opacity: 0.8; text-transform: uppercase; }
+
+        /* --- السلة --- */
+        .report-title { color: var(--neon-blue); font-size: 2.2rem; font-weight: 900; font-style: italic; text-align: center; margin: 25px 0; text-shadow: 0 0 15px var(--neon-blue); }
+        .total-box { background: #000; border: 1px solid #333; padding: 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; margin: 0 20px 20px 20px; }
+        .cart-list { margin: 0 20px 20px 20px; background: rgba(255,255,255,0.05); border-radius: 15px; padding: 15px; }
+        .cart-item { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 10px 0; font-size: 0.95rem; }
+        .input-w { background: #fff; color: #000; width: calc(100% - 40px); margin: 0 20px 10px 20px; padding: 18px; border-radius: 15px; border: none; font-weight: bold; font-size: 1.1rem; }
+        .gps-confirm-btn { background: #333; color: #fff; width: calc(100% - 40px); margin: 0 20px; padding: 18px; border-radius: 12px; border: none; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; }
+        .gps-active { background: var(--success-green) !important; }
+
+        /* تأثير السمكة القافزة */
+        .fish-glow { position: fixed; color: var(--neon-blue); font-size: 2rem; pointer-events: none; z-index: 9999; text-shadow: 0 0 20px var(--neon-blue); transition: all 0.8s cubic-bezier(0.45, 0.05, 0.55, 0.95); }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-left"><i class="fas fa-arrow-left back-btn" id="backBtn" onclick="goBack()"></i><div class="nav-brand">LA VAGUE<span style="color:var(--neon-blue);">.</span></div></div>
+        <div class="white-cart-btn" id="cartIco" onclick="nav('cartPage')"><i class="fas fa-shopping-cart"></i><div class="cart-badge" id="cCount">0</div></div>
+    </nav>
+
+    <!-- الواجهة الرئيسية -->
+    <div id="home" class="page active">
+        <div class="hero">
+            <div class="logo-fixed-circle"></div>
+            <h1 class="brand-title">LA VAGUE <span style="color:var(--neon-blue);">RESTAURANT</span></h1>
+            <div class="slogan-bar">RÈGLE N°1 – SÉDUIRE MON ESTOMAC</div>
+
+            <div class="btn-stack">
+                <a href="https://www.google.com/maps/search/?api=1&query=Restaurant+la+vague+Sidi+Yahia" target="_blank" class="sub-btn btn-maps-main"><i class="fas fa-map-marker-alt"></i> NOTRE POSITION</a>
+                <a href="tel:0795863808" class="sub-btn btn-call-main" target="_top"><i class="fas fa-phone-alt"></i> 0795 86 38 08</a>
+                <button class="menu-giant-trigger" onclick="nav('menuPage')">MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- المنيو الكامل حبة حبة (أكثر من 80 صنفاً) -->
+    <div id="menuPage" class="page">
+        <!-- 1. المقبلات الباردة -->
+        <div class="section-title">Entrées Froides</div>
+        <div class="dish-card"><span>Salade Poulpe</span><button class="order-btn" onclick="flyFish(this, 'Salade Poulpe', 700)"><span>اطلب</span><b>700</b></button></div>
+        <div class="dish-card"><span>Salade Thon</span><button class="order-btn" onclick="flyFish(this, 'Salade Thon', 400)"><span>اطلب</span><b>400</b></button></div>
+        <div class="dish-card"><span>Salade Variée</span><button class="order-btn" onclick="flyFish(this, 'Salade Variée', 400)"><span>اطلب</span><b>400</b></button></div>
+        <div class="dish-card"><span>Salade César</span><button class="order-btn" onclick="flyFish(this, 'Salade César', 950)"><span>اطلب</span><b>950</b></button></div>
+        <div class="dish-card"><span>Salade Bourata</span><button class="order-btn" onclick="flyFish(this, 'Salade Bourata', 1200)"><span>اطلب</span><b>1200</b></button></div>
+        <div class="dish-card"><span>Salade Mozzarella</span><button class="order-btn" onclick="flyFish(this, 'Salade Mozza', 1200)"><span>اطلب</span><b>1200</b></button></div>
+        <div class="dish-card"><span>Salade La Vague (Chef)</span><button class="order-btn" onclick="flyFish(this, 'S. Chef', 1300)"><span>اطلب</span><b>1300</b></button></div>
+        <div class="dish-card"><span>Hmise Maison</span><button class="order-btn" onclick="flyFish(this, 'Hmise', 300)"><span>اطلب</span><b>300</b></button></div>
+        <div class="dish-card"><span>Tartare de Dorad</span><button class="order-btn" onclick="flyFish(this, 'Tartare Dor.', 1200)"><span>اطلب</span><b>1200</b></button></div>
+        <div class="dish-card"><span>Tartare de Saumon</span><button class="order-btn" onclick="flyFish(this, 'Tartare Sau.', 1400)"><span>اطلب</span><b>1400</b></button></div>
+
+        <!-- 2. المقبلات الساخنة -->
+        <div class="section-title">Entrées Chaudes</div>
+        <div class="dish-card"><span>Soupe de Poissons</span><button class="order-btn" onclick="flyFish(this, 'Soupe Poiss.', 500)"><span>اطلب</span><b>500</b></button></div>
+        <div class="dish-card"><span>Omelette aux Crevettes</span><button class="order-btn" onclick="flyFish(this, 'Omelette', 1000)"><span>اطلب</span><b>1000</b></button></div>
+        <div class="dish-card"><span>Loubia Fruits de Mer</span><button class="order-btn" onclick="flyFish(this, 'Loubia FM', 600)"><span>اطلب</span><b>600</b></button></div>
+        <div class="dish-card"><span>Loubia Crevettes</span><button class="order-btn" onclick="flyFish(this, 'Loubia CR', 600)"><span>اطلب</span><b>600</b></button></div>
+        <div class="dish-card"><span>Bourek Poisson</span><button class="order-btn" onclick="flyFish(this, 'Bourek P.', 250)"><span>اطلب</span><b>250</b></button></div>
+        <div class="dish-card"><span>Bourek Crevette</span><button class="order-btn" onclick="flyFish(this, 'Bourek C.', 250)"><span>اطلب</span><b>250</b></button></div>
+        <div class="dish-card"><span>Brique Poisson</span><button class="order-btn" onclick="flyFish(this, 'Brique P.', 500)"><span>اطلب</span><b>500</b></button></div>
+        <div class="dish-card"><span>Brique Crevette</span><button class="order-btn" onclick="flyFish(this, 'Brique C.', 500)"><span>اطلب</span><b>500</b></button></div>
+
+        <!-- 3. الغراتان -->
+        <div class="section-title">Gratin</div>
+        <div class="dish-card"><span>Gratin Crevettes</span><button class="order-btn" onclick="flyFish(this, 'Gratin Cr.', 1100)"><span>اطلب</span><b>1100</b></button></div>
+        <div class="dish-card"><span>Gratin Poissons</span><button class="order-btn" onclick="flyFish(this, 'Gratin Poi.', 1000)"><span>اطلب</span><b>1000</b></button></div>
+
+        <!-- 4. المشاوي -->
+        <div class="section-title">Les Grillades</div>
+        <div class="dish-card"><span>Sardine</span><button class="order-btn" onclick="flyFish(this, 'Sardine', 600)"><span>اطلب</span><b>600</b></button></div>
+        <div class="dish-card"><span>Dorade</span><button class="order-btn" onclick="flyFish(this, 'Dorade', 1400)"><span>اطلب</span><b>1400</b></button></div>
+        <div class="dish-card"><span>Espadon</span><button class="order-btn" onclick="flyFish(this, 'Espadon', 2300)"><span>اطلب</span><b>2300</b></button></div>
+        <div class="dish-card"><span>Rouget</span><button class="order-btn" onclick="flyFish(this, 'Rouget', 1600)"><span>اطلب</span><b>1600</b></button></div>
+        <div class="dish-card"><span>Merlan</span><button class="order-btn" onclick="flyFish(this, 'Merlan', 1600)"><span>اطلب</span><b>1600</b></button></div>
+        <div class="dish-card"><span>Loup de mer</span><button class="order-btn" onclick="flyFish(this, 'Loup mer', 1500)"><span>اطلب</span><b>1500</b></button></div>
+        <div class="dish-card"><span>Crevette Royale</span><button class="order-btn" onclick="flyFish(this, 'Crev. Roy.', 2500)"><span>اطلب</span><b>2500</b></button></div>
+        <div class="dish-card"><span>Mérou</span><button class="order-btn" onclick="flyFish(this, 'Mérou', 2800)"><span>اطلب</span><b>2800</b></button></div>
+        <div class="dish-card"><span>Pageot</span><button class="order-btn" onclick="flyFish(this, 'Pageot', 1300)"><span>اطلب</span><b>1300</b></button></div>
+        <div class="dish-card"><span>Chien de mer</span><button class="order-btn" onclick="flyFish(this, 'Chien mer', 1800)"><span>اطلب</span><b>1800</b></button></div>
+        <div class="dish-card"><span>La Lotte</span><button class="order-btn" onclick="flyFish(this, 'La Lotte', 1600)"><span>اطلب</span><b>1600</b></button></div>
+        <div class="dish-card"><span>Calamar</span><button class="order-btn" onclick="flyFish(this, 'Calamar', 2200)"><span>اطلب</span><b>2200</b></button></div>
+        <div class="dish-card"><span>Saumon</span><button class="order-btn" onclick="flyFish(this, 'Saumon', 3000)"><span>اطلب</span><b>3000</b></button></div>
+        <div class="dish-card"><span>Pagre</span><button class="order-btn" onclick="flyFish(this, 'Pagre', 2800)"><span>اطلب</span><b>2800</b></button></div>
+
+        <!-- 5. فاست فود -->
+        <div class="section-title">Burger & Sandwich</div>
+        <div class="dish-card"><span>Burger Poisson</span><button class="order-btn" onclick="flyFish(this, 'Burg. Poiss', 700)"><span>اطلب</span><b>700</b></button></div>
+        <div class="dish-card"><span>Burger Crevette</span><button class="order-btn" onclick="flyFish(this, 'Burg. Crev.', 700)"><span>اطلب</span><b>700</b></button></div>
+        <div class="dish-card"><span>Sandwich Poisson</span><button class="order-btn" onclick="flyFish(this, 'Sand. Poiss', 750)"><span>اطلب</span><b>750</b></button></div>
+        <div class="dish-card"><span>Sandwich Crevette</span><button class="order-btn" onclick="flyFish(this, 'Sand. Crev.', 800)"><span>اطلب</span><b>800</b></button></div>
+        <div class="dish-card"><span>Sandwich Dorade et Loup</span><button class="order-btn" onclick="flyFish(this, 'Sand. D/L', 900)"><span>اطلب</span><b>900</b></button></div>
+
+        <!-- 6. بوكس واضافات -->
+        <div class="section-title">Boxe & Suppléments</div>
+        <div class="dish-card"><span>Boxe Poissons</span><button class="order-btn" onclick="flyFish(this, 'Boxe P.', 1300)"><span>اطلب</span><b>1300</b></button></div>
+        <div class="dish-card"><span>Boxe Crevettes</span><button class="order-btn" onclick="flyFish(this, 'Boxe C.', 1600)"><span>اطلب</span><b>1600</b></button></div>
+        <div class="dish-card"><span>Arancini Italien</span><button class="order-btn" onclick="flyFish(this, 'Arancini', 1200)"><span>اطلب</span><b>1200</b></button></div>
+        <div class="dish-card"><span>Riz Nature</span><button class="order-btn" onclick="flyFish(this, 'Riz', 300)"><span>اطلب</span><b>300</b></button></div>
+        <div class="dish-card"><span>Riz Noir</span><button class="order-btn" onclick="flyFish(this, 'Riz Noir', 400)"><span>اطلب</span><b>400</b></button></div>
+        <div class="dish-card"><span>Frites</span><button class="order-btn" onclick="flyFish(this, 'Frites', 250)"><span>اطلب</span><b>250</b></button></div>
+
+        <!-- 7. صلصات وعجائن -->
+        <div class="section-title">Sauce & Pâtes</div>
+        <div class="dish-card"><span>Chtitha Sardine</span><button class="order-btn" onclick="flyFish(this, 'Chtitha', 600)"><span>اطلب</span><b>600</b></button></div>
+        <div class="dish-card"><span>Sépia en sauce</span><button class="order-btn" onclick="flyFish(this, 'Sépia S.', 1700)"><span>اطلب</span><b>1700</b></button></div>
+        <div class="dish-card"><span>Calamars Farci</span><button class="order-btn" onclick="flyFish(this, 'Calam. F.', 2500)"><span>اطلب</span><b>2500</b></button></div>
+        <div class="dish-card"><span>Saumon à la Crème</span><button class="order-btn" onclick="flyFish(this, 'Saumon Cr.', 3300)"><span>اطلب</span><b>3300</b></button></div>
+        <div class="dish-card"><span>Crevette en Sauce</span><button class="order-btn" onclick="flyFish(this, 'Crev. Sauce', 2600)"><span>اطلب</span><b>2600</b></button></div>
+        <div class="dish-card"><span>Spaghetti Crevettes</span><button class="order-btn" onclick="flyFish(this, 'Spag. Crev', 1600)"><span>اطلب</span><b>1600</b></button></div>
+        <div class="dish-card"><span>Tagliatelle Saumon</span><button class="order-btn" onclick="flyFish(this, 'Tagl. Sau.', 1950)"><span>اطلب</span><b>1950</b></button></div>
+
+        <!-- 8. بايلا وتقليدي -->
+        <div class="section-title">Paella & Tradition</div>
+        <div class="dish-card"><span>Paella 2 Personnes</span><button class="order-btn" onclick="flyFish(this, 'Paella 2P', 4000)"><span>اطلب</span><b>4000</b></button></div>
+        <div class="dish-card"><span>Paella 4 Personnes</span><button class="order-btn" onclick="flyFish(this, 'Paella 4P', 7000)"><span>اطلب</span><b>7000</b></button></div>
+        <div class="dish-card"><span>Paella 10 Personnes</span><button class="order-btn" onclick="flyFish(this, 'Paella 10P', 16000)"><span>اطلب</span><b>16000</b></button></div>
+        <div class="dish-card"><span>Couscous Espadon (Ven)</span><button class="order-btn" onclick="flyFish(this, 'Cousc. Espad', 3500)"><span>اطلب</span><b>3500</b></button></div>
+        <div class="dish-card"><span>Couscous Mérou (Ven)</span><button class="order-btn" onclick="flyFish(this, 'Cousc. Mérou', 3500)"><span>اطلب</span><b>3500</b></button></div>
+
+        <!-- 9. تحلية ومشروبات -->
+        <div class="section-title">Desserts & Boissons</div>
+        <div class="dish-card"><span>Tiramisu</span><button class="order-btn" onclick="flyFish(this, 'Tiramisu', 500)"><span>اطلب</span><b>500</b></button></div>
+        <div class="dish-card"><span>Crème Brulée</span><button class="order-btn" onclick="flyFish(this, 'C. Brulé', 350)"><span>اطلب</span><b>350</b></button></div>
+        <div class="dish-card"><span>Soda Canette</span><button class="order-btn" onclick="flyFish(this, 'Soda', 150)"><span>اطلب</span><b>150</b></button></div>
+        <div class="dish-card"><span>Jus Vague</span><button class="order-btn" onclick="flyFish(this, 'Jus Vague', 200)"><span>اطلب</span><b>200</b></button></div>
+    </div>
+
+    <!-- السلة -->
+    <div id="cartPage" class="page">
+        <h2 class="report-title">VOTRE COMMANDE</h2>
+        <div class="cart-list" id="itemList"></div>
+        <div class="total-box"><span style="font-weight:900; color:var(--neon-blue); font-style:italic; font-size:1.3rem;">TOTAL:</span><span style="font-size:1.4rem; font-weight:900; color:var(--neon-blue);" id="totalVal">0 DA</span></div>
+        <input type="text" id="uN" class="input-w" placeholder="Nom Complet / الاسم">
+        <input type="tel" id="uP" class="input-w" placeholder="Téléphone / الهاتف">
+        <select id="uCity" class="input-w">
+            <option disabled selected>Commune / البلدية</option>
+            <option>Sidi Yahia / Hydra</option><option>El Biar</option><option>Kouba</option>
+            <option>Alger Centre</option><option>Ben Aknoun</option><option>Dely Brahim</option>
+            <option>Birkhadem</option><option>Cheraga</option><option>Ain Benian</option>
+            <option>Bab Ezzouار</option><option>Dar El Beida</option><option>Zeralda</option>
+            <option>Ouled Fayet</option><option>Draria</option><option>Saoula</option>
+        </select>
+        <butto
