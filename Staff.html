@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Vague STAFF - Mission Control</title>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --neon: #00d4ff; --dark: #00050a; --card: #0a1120; --success: #2ed573; }
+        
+        body { background-color: var(--dark); color: #fff; font-family: 'Segoe UI', sans-serif; }
+
+        /* --- Header --- */
+        .header {
+            background: #000; padding: 20px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 2px solid var(--neon); position: sticky; top: 0; z-index: 1000;
+        }
+        .staff-brand { font-weight: 900; font-style: italic; color: var(--neon); letter-spacing: 2px; }
+        
+        .bell-box { position: relative; cursor: pointer; }
+        .fa-bell { font-size: 1.8rem; color: var(--neon); text-shadow: 0 0 15px var(--neon); }
+        
+        /* انيميشن الجرس */
+        @keyframes ring { 0% {transform: rotate(0)} 10% {transform: rotate(20deg)} 20% {transform: rotate(-20deg)} 30% {transform: rotate(0)} }
+        .ringing { animation: ring 0.4s infinite; }
+
+        /* --- Profit Sidebar --- */
+        .profit-tab {
+            position: fixed; left: 0; top: 50%; transform: translateY(-50%);
+            background: var(--neon); color: #000; padding: 20px 10px;
+            border-radius: 0 15px 15px 0; font-weight: 900; cursor: pointer;
+            writing-mode: vertical-lr; z-index: 1001; box-shadow: 0 0 20px var(--neon);
+        }
+
+        /* --- Tabs --- */
+        .tabs { display: flex; background: #001226; padding: 5px; margin: 20px auto; width: 90%; max-width: 500px; border-radius: 50px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; border-radius: 50px; background: transparent; color: #fff; font-weight: bold; cursor: pointer; }
+        .tab-btn.active { background: var(--neon); color: #000; }
+
+        /* --- Orders Container --- */
+        .container { max-width: 800px; margin: 0 auto; padding: 0 15px 100px 15px; }
+        
+        .order-card {
+            background: var(--card); border-radius: 20px; padding: 20px;
+            margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);
+            animation: slideIn 0.4s ease;
+        }
+        @keyframes slideIn { from {opacity:0; transform: translateY(20px)} to {opacity:1; transform: translateY(0)} }
+
+        .order-head { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
+        .phone-link { color: var(--neon); text-decoration: none; font-weight: 900; font-size: 1.3rem; display: block; margin: 8px 0; }
+        
+        .items-list { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin: 15px 0; }
+        .item-line { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+
+        .action-bar { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 1rem; }
+        .btn-gps { background: var(--neon); color: #000; }
+        .btn-done { background: var(--success); color: #fff; }
+
+        /* Modal Profits */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; }
+        .modal-content { background: #00162b; padding: 40px; border-radius: 30px; border: 2px solid var(--neon); text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="profit-tab" onclick="calculateProfits()">P R O F I T S</div>
+
+    <div class="header">
+        <div class="staff-brand">LA VAGUE STAFF</div>
+        <div class="bell-box">
+            <i class="fas fa-bell" id="neonBell"></i>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="btnLive" onclick="setTab('pending')">LIVE</button>
+        <button class="tab-btn" id="btnDone" onclick="setTab('done')">ARCHIVES</button>
+    </div>
+
+    <div class="container" id="ordersList">
+        <!-- الطلبات ستظهر هنا -->
+    </div>
+
+    <!-- نافذة الأرباح -->
+    <div id="profitModal" class="modal">
+        <div class="modal-content">
+            <h2 style="font-style:italic; margin-bottom:15px;">TOTAL DES VENTES</h2>
+            <div id="totalDisplay" style="font-size:3rem; font-weight:900; color:var(--neon); text-shadow:0 0 20px var(--neon);">0 DA</div>
+            <button class="btn btn-gps" style="margin-top:20px;" onclick="document.getElementById('profitModal').style.display='none'">FERMER</button>
+        </div>
+    </div>
+
+    <audio id="bellSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+    <script>
+        // --- 1. إعداد Supabase ---
+        const SUPABASE_URL = 'https://jtwiuurduechpnajormb.supabase.co';
+        const SUPABASE_KEY = 'ضـع_مفتاح_ANON_الخاص_بك';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentStatus = 'pending';
+
+        // --- 2. جلب الطلبات من القاعدة ---
+        async function fetchOrders() {
+            const { data, error } = await sb
+                .from('orders')
+                .select('*')
+                .eq('status', currentStatus)
+                .order('created_at', { ascending: false });
+
+            const container = document.getElementById('ordersList');
+            if (data.length === 0) {
+                container.innerHTML = `<p style="text-align:center; opacity:0.3; margin-top:50px;">Aucune mission ici</p>`;
+                return;
+            }
+
+            container.innerHTML = data.map(o => `
+                <div class="order-card">
+                    <div class="order-head">
+                        <div>
+                            <div style="opacity:0.6; font-size:0.8rem;">Client:</div>
+                            <b style="font-size:1.2rem;">${o.customer_name}</b>
+                            <a href="tel:${o.phone}" class="phone-link"><i class="fas fa-phone-alt"></i> ${o.phone}</a>
+                            <div style="color:var(--neon); font-size:0.9rem;">${o.city}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:900; color:var(--neon); font-size:1.4rem;">${o.total_price} DA</div>
+                            <div style="font-size:0.7rem; opacity:0.4;">${new Date(o.created_at).toLocaleTimeString()}</div>
+                        </div>
+                    </div>
+                    <div class="items-list">
+                        ${o.items.map(i => `<div class="item-line"><span>${i.name}</span><b>${i.price} DA</b></div>`).join('')}
+                    </div>
+                    <div class="action-bar" style="display: ${currentStatus === 'pending' ? 'flex' : 'none'}">
+                        <a href="https://maps.google.com?q=${o.gps_coords}" target="_blank" class="btn btn-gps"><i class="fas fa-location-arrow"></i> GPS</a>
+                        <button class="btn btn-done" onclick="markAsDone('${o.id}')"><i class="fas fa-check"></i> LIVRÉ</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- 3. تحديث حالة الطلب ---
+        async function markAsDone(id) {
+            const { error } = await sb.from('orders').update({ status: 'done' }).eq('id', id);
+            if (!error) fetchOrders();
+        }
+
+        // --- 4. حساب الأرباح ---
+        async function calculateProfits() {
+            const { data } = await sb.from('orders').select('total_price').eq('status', 'done');
+            const total = data.reduce((acc, o) => acc + Number(o.total_price), 0);
+            document.getElementById('totalDisplay').innerText = total + " DA";
+            document.getElementById('profitModal').style.display = 'flex';
+        }
+
+        // --- 5. نظام التنبيه والجرس ---
+        function playAlert() {
+            const bell = document.getElementById('neonBell');
+            const sound = document.getElementById('bellSound');
+            bell.classList.add('ringing');
+            let rings = 0;
+            let interval = setInterval(() => {
+                sound.currentTime = 0;
+                sound.play();
+                rings++;
+                if (rings >= 3) { clearInterval(interval); setTimeout(() => bell.classList.remove('ringing'), 2000); }
+            }, 1000);
+        }
+
+        // --- 6. الاستماع المباشر للطلبات الجديدة ---
+        sb.channel('custom-orders')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
+              playAlert();
+              fetchOrders();
+          })
+          .subscribe();
+
+        function setTab(status) {
+            currentStatus = status;
+            document.getElementById('btnLive').classList.toggle('active', status === 'pending');
+            document.getElementById('btnDone').classList.toggle('active', status === 'done');
+            fetchOrders();
+        }
+
+        // تشغيل أولي
+        fetchOrders();
+    </script>
+</body>
+</html>
